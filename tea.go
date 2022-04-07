@@ -268,9 +268,13 @@ func HideCursor() Msg {
 //     cmd := Exec(WrapExecCommand(exec.Command("vim", "file.txt")), nil)
 //
 // For non-interactive i/o you should use a Cmd (that is, a tea.Cmd).
-func Exec(c ExecCommand, fn ExecCallback) Cmd {
+func Exec(c ExecCommand, fn ExecCallback, opts ...ExecOption) Cmd {
+	var optBits uint
+	for _, v := range opts {
+		optBits |= uint(v)
+	}
 	return func() Msg {
-		return execMsg{cmd: c, fn: fn}
+		return execMsg{cmd: c, fn: fn, opts: optBits}
 	}
 }
 
@@ -278,10 +282,23 @@ func Exec(c ExecCommand, fn ExecCallback) Cmd {
 // with an error, which may or may not be nil.
 type ExecCallback func(error) Msg
 
+// ExecOption sets behavioral options on an Exec Cmd.
+type ExecOption uint
+
+// Available ExecOptions.
+const (
+	// Specifies that the given exec.Cmd will run in the altscreen. While this
+	// is never required, it prevents Bubble Tea from exiting the AltScreen
+	// prior to executing the exec.Cmd, which can prevent a brief flash caused
+	// by the altscreen being quickly exited and re-entered.
+	ExecRunsInAltScreen = 1 << iota
+)
+
 // execMsg is used internally to run an ExecCommand sent with Exec.
 type execMsg struct {
-	cmd ExecCommand
-	fn  ExecCallback
+	cmd  ExecCommand
+	fn   ExecCallback
+	opts uint
 }
 
 // hideCursorMsg is an internal command used to hide the cursor. You can send
@@ -565,7 +582,7 @@ func (p *Program) StartReturningModel() (Model, error) {
 
 			case execMsg:
 				// Note: this blocks.
-				p.exec(msg.cmd, msg.fn)
+				p.exec(msg.cmd, msg.fn, msg.opts)
 			}
 
 			// Process internal messages for the renderer.
@@ -644,11 +661,7 @@ func (p *Program) EnterAltScreen() {
 	}
 
 	enterAltScreen(p.output)
-
-	p.altScreenActive = true
-	if p.renderer != nil {
-		p.renderer.setAltScreen(p.altScreenActive)
-	}
+	p.setAltScreenActive(true)
 }
 
 // ExitAltScreen exits the alternate screen buffer.
@@ -663,10 +676,13 @@ func (p *Program) ExitAltScreen() {
 	}
 
 	exitAltScreen(p.output)
+	p.setAltScreenActive(false)
+}
 
-	p.altScreenActive = false
+func (p *Program) setAltScreenActive(v bool) {
+	p.altScreenActive = v
 	if p.renderer != nil {
-		p.renderer.setAltScreen(p.altScreenActive)
+		p.renderer.setAltScreen(v)
 	}
 }
 
@@ -714,12 +730,18 @@ func (p *Program) DisableMouseAllMotion() {
 // ReleaseTerminal restores the original terminal state and cancels the input
 // reader. You can return control to the Program with RestoreTerminal.
 func (p *Program) ReleaseTerminal() error {
+	return p.releaseTerminal(0)
+}
+
+func (p *Program) releaseTerminal(opts uint) error {
 	p.ignoreSignals = true
 	p.cancelInput()
 	p.altScreenWasActive = p.altScreenActive
-	if p.altScreenActive {
+	if opts&ExecRunsInAltScreen == 0 && p.altScreenActive {
 		p.ExitAltScreen()
 		time.Sleep(time.Millisecond * 10) // give the terminal a moment to catch up
+	} else if opts&ExecRunsInAltScreen != 0 {
+		p.setAltScreenActive(false)
 	}
 	return p.restoreTerminalState()
 }
@@ -791,8 +813,8 @@ func (c *osExecCommand) SetStderr(w io.Writer) {
 }
 
 // exec runs an ExecCommand and delivers the results to the program as a Msg.
-func (p *Program) exec(c ExecCommand, fn ExecCallback) {
-	if err := p.ReleaseTerminal(); err != nil {
+func (p *Program) exec(c ExecCommand, fn ExecCallback, opts uint) {
+	if err := p.releaseTerminal(opts); err != nil {
 		// If we can't release input, abort.
 		if fn != nil {
 			go p.Send(fn(err))
