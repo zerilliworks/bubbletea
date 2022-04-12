@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -53,6 +54,7 @@ type Key struct {
 	Type  KeyType
 	Runes []rune
 	Alt   bool
+	Shift bool
 }
 
 // String returns a friendly string representation for a key. It's safe (and
@@ -62,16 +64,20 @@ type Key struct {
 //     fmt.Println(k)
 //     // Output: enter
 //
-func (k Key) String() (str string) {
+func (k Key) String() string {
+	var b strings.Builder
 	if k.Alt {
-		str += "alt+"
+		b.WriteString("alt+")
+	}
+	if k.Shift {
+		b.WriteString("shift+")
 	}
 	if k.Type == KeyRunes {
-		str += string(k.Runes)
-		return str
+		b.WriteString(string(k.Runes))
+		return b.String()
 	} else if s, ok := keyNames[k.Type]; ok {
-		str += s
-		return str
+		b.WriteString(s)
+		return b.String()
 	}
 	return ""
 }
@@ -192,7 +198,6 @@ const (
 	KeyDown
 	KeyRight
 	KeyLeft
-	KeyShiftTab
 	KeyHome
 	KeyEnd
 	KeyPgUp
@@ -203,14 +208,6 @@ const (
 	KeyCtrlDown
 	KeyCtrlRight
 	KeyCtrlLeft
-	KeyShiftUp
-	KeyShiftDown
-	KeyShiftRight
-	KeyShiftLeft
-	KeyCtrlShiftUp
-	KeyCtrlShiftDown
-	KeyCtrlShiftLeft
-	KeyCtrlShiftRight
 	KeyF1
 	KeyF2
 	KeyF3
@@ -271,50 +268,41 @@ var keyNames = map[KeyType]string{
 	keyDEL: "backspace",
 
 	// Other keys.
-	KeyRunes:          "runes",
-	KeyUp:             "up",
-	KeyDown:           "down",
-	KeyRight:          "right",
-	KeySpace:          " ", // for backwards compatibility
-	KeyLeft:           "left",
-	KeyShiftTab:       "shift+tab",
-	KeyHome:           "home",
-	KeyEnd:            "end",
-	KeyPgUp:           "pgup",
-	KeyPgDown:         "pgdown",
-	KeyDelete:         "delete",
-	KeyCtrlUp:         "ctrl+up",
-	KeyCtrlDown:       "ctrl+down",
-	KeyCtrlRight:      "ctrl+right",
-	KeyCtrlLeft:       "ctrl+left",
-	KeyShiftUp:        "shift+up",
-	KeyShiftDown:      "shift+down",
-	KeyShiftRight:     "shift+right",
-	KeyShiftLeft:      "shift+left",
-	KeyCtrlShiftUp:    "ctrl+shift+up",
-	KeyCtrlShiftDown:  "ctrl+shift+down",
-	KeyCtrlShiftLeft:  "ctrl+shift+left",
-	KeyCtrlShiftRight: "ctrl+shift+right",
-	KeyF1:             "f1",
-	KeyF2:             "f2",
-	KeyF3:             "f3",
-	KeyF4:             "f4",
-	KeyF5:             "f5",
-	KeyF6:             "f6",
-	KeyF7:             "f7",
-	KeyF8:             "f8",
-	KeyF9:             "f9",
-	KeyF10:            "f10",
-	KeyF11:            "f11",
-	KeyF12:            "f12",
-	KeyF13:            "f13",
-	KeyF14:            "f14",
-	KeyF15:            "f15",
-	KeyF16:            "f16",
-	KeyF17:            "f17",
-	KeyF18:            "f18",
-	KeyF19:            "f19",
-	KeyF20:            "f20",
+	KeyRunes:     "runes",
+	KeyUp:        "up",
+	KeyDown:      "down",
+	KeyRight:     "right",
+	KeySpace:     " ", // for backwards compatibility
+	KeyLeft:      "left",
+	KeyHome:      "home",
+	KeyEnd:       "end",
+	KeyPgUp:      "pgup",
+	KeyPgDown:    "pgdown",
+	KeyDelete:    "delete",
+	KeyCtrlUp:    "ctrl+up",
+	KeyCtrlDown:  "ctrl+down",
+	KeyCtrlRight: "ctrl+right",
+	KeyCtrlLeft:  "ctrl+left",
+	KeyF1:        "f1",
+	KeyF2:        "f2",
+	KeyF3:        "f3",
+	KeyF4:        "f4",
+	KeyF5:        "f5",
+	KeyF6:        "f6",
+	KeyF7:        "f7",
+	KeyF8:        "f8",
+	KeyF9:        "f9",
+	KeyF10:       "f10",
+	KeyF11:       "f11",
+	KeyF12:       "f12",
+	KeyF13:       "f13",
+	KeyF14:       "f14",
+	KeyF15:       "f15",
+	KeyF16:       "f16",
+	KeyF17:       "f17",
+	KeyF18:       "f18",
+	KeyF19:       "f19",
+	KeyF20:       "f20",
 }
 
 // Sequence mappings.
@@ -324,18 +312,18 @@ var sequences = map[string]Key{
 	"\x1b[B":     {Type: KeyDown},
 	"\x1b[C":     {Type: KeyRight},
 	"\x1b[D":     {Type: KeyLeft},
-	"\x1b[1;2A":  {Type: KeyShiftUp},
-	"\x1b[1;2B":  {Type: KeyShiftDown},
-	"\x1b[1;2C":  {Type: KeyShiftRight},
-	"\x1b[1;2D":  {Type: KeyShiftLeft},
-	"\x1b[OA":    {Type: KeyShiftUp},    // DECCKM
-	"\x1b[OB":    {Type: KeyShiftDown},  // DECCKM
-	"\x1b[OC":    {Type: KeyShiftRight}, // DECCKM
-	"\x1b[OD":    {Type: KeyShiftLeft},  // DECCKM
-	"\x1b[a":     {Type: KeyShiftUp},    // urxvt
-	"\x1b[b":     {Type: KeyShiftDown},  // urxvt
-	"\x1b[c":     {Type: KeyShiftRight}, // urxvt
-	"\x1b[d":     {Type: KeyShiftLeft},  // urxvt
+	"\x1b[1;2A":  {Type: KeyUp, Shift: true},
+	"\x1b[1;2B":  {Type: KeyDown, Shift: true},
+	"\x1b[1;2C":  {Type: KeyRight, Shift: true},
+	"\x1b[1;2D":  {Type: KeyLeft, Shift: true},
+	"\x1b[OA":    {Type: KeyUp, Shift: true},    // DECCKM
+	"\x1b[OB":    {Type: KeyDown, Shift: true},  // DECCKM
+	"\x1b[OC":    {Type: KeyRight, Shift: true}, // DECCKM
+	"\x1b[OD":    {Type: KeyLeft, Shift: true},  // DECCKM
+	"\x1b[a":     {Type: KeyUp, Shift: true},    // urxvt
+	"\x1b[b":     {Type: KeyDown, Shift: true},  // urxvt
+	"\x1b[c":     {Type: KeyRight, Shift: true}, // urxvt
+	"\x1b[d":     {Type: KeyLeft, Shift: true},  // urxvt
 	"\x1b[1;3A":  {Type: KeyUp, Alt: true},
 	"\x1b[1;3B":  {Type: KeyDown, Alt: true},
 	"\x1b[1;3C":  {Type: KeyRight, Alt: true},
@@ -344,14 +332,14 @@ var sequences = map[string]Key{
 	"\x1b\x1b[B": {Type: KeyDown, Alt: true},  // urxvt
 	"\x1b\x1b[C": {Type: KeyRight, Alt: true}, // urxvt
 	"\x1b\x1b[D": {Type: KeyLeft, Alt: true},  // urxvt
-	"\x1b[1;4A":  {Type: KeyShiftUp, Alt: true},
-	"\x1b[1;4B":  {Type: KeyShiftDown, Alt: true},
-	"\x1b[1;4C":  {Type: KeyShiftRight, Alt: true},
-	"\x1b[1;4D":  {Type: KeyShiftLeft, Alt: true},
-	"\x1b\x1b[a": {Type: KeyShiftUp, Alt: true},    // urxvt
-	"\x1b\x1b[b": {Type: KeyShiftDown, Alt: true},  // urxvt
-	"\x1b\x1b[c": {Type: KeyShiftRight, Alt: true}, // urxvt
-	"\x1b\x1b[d": {Type: KeyShiftLeft, Alt: true},  // urxvt
+	"\x1b[1;4A":  {Type: KeyUp, Alt: true, Shift: true},
+	"\x1b[1;4B":  {Type: KeyDown, Alt: true, Shift: true},
+	"\x1b[1;4C":  {Type: KeyRight, Alt: true, Shift: true},
+	"\x1b[1;4D":  {Type: KeyLeft, Alt: true, Shift: true},
+	"\x1b\x1b[a": {Type: KeyUp, Alt: true, Shift: true},    // urxvt
+	"\x1b\x1b[b": {Type: KeyDown, Alt: true, Shift: true},  // urxvt
+	"\x1b\x1b[c": {Type: KeyRight, Alt: true, Shift: true}, // urxvt
+	"\x1b\x1b[d": {Type: KeyLeft, Alt: true, Shift: true},  // urxvt
 	"\x1b[1;5A":  {Type: KeyCtrlUp},
 	"\x1b[1;5B":  {Type: KeyCtrlDown},
 	"\x1b[1;5C":  {Type: KeyCtrlRight},
@@ -360,21 +348,21 @@ var sequences = map[string]Key{
 	"\x1b[Ob":    {Type: KeyCtrlDown, Alt: true},  // urxvt
 	"\x1b[Oc":    {Type: KeyCtrlRight, Alt: true}, // urxvt
 	"\x1b[Od":    {Type: KeyCtrlLeft, Alt: true},  // urxvt
-	"\x1b[1;6A":  {Type: KeyCtrlShiftUp},
-	"\x1b[1;6B":  {Type: KeyCtrlShiftDown},
-	"\x1b[1;6C":  {Type: KeyCtrlShiftRight},
-	"\x1b[1;6D":  {Type: KeyCtrlShiftLeft},
+	"\x1b[1;6A":  {Type: KeyCtrlUp, Shift: true},
+	"\x1b[1;6B":  {Type: KeyCtrlDown, Shift: true},
+	"\x1b[1;6C":  {Type: KeyCtrlRight, Shift: true},
+	"\x1b[1;6D":  {Type: KeyCtrlLeft, Shift: true},
 	"\x1b[1;7A":  {Type: KeyCtrlUp, Alt: true},
 	"\x1b[1;7B":  {Type: KeyCtrlDown, Alt: true},
 	"\x1b[1;7C":  {Type: KeyCtrlRight, Alt: true},
 	"\x1b[1;7D":  {Type: KeyCtrlLeft, Alt: true},
-	"\x1b[1;8A":  {Type: KeyCtrlShiftUp, Alt: true},
-	"\x1b[1;8B":  {Type: KeyCtrlShiftDown, Alt: true},
-	"\x1b[1;8C":  {Type: KeyCtrlShiftRight, Alt: true},
-	"\x1b[1;8D":  {Type: KeyCtrlShiftLeft, Alt: true},
+	"\x1b[1;8A":  {Type: KeyCtrlUp, Alt: true, Shift: true},
+	"\x1b[1;8B":  {Type: KeyCtrlDown, Alt: true, Shift: true},
+	"\x1b[1;8C":  {Type: KeyCtrlRight, Alt: true, Shift: true},
+	"\x1b[1;8D":  {Type: KeyCtrlLeft, Alt: true, Shift: true},
 
 	// Miscellaneous keys
-	"\x1b[Z":      {Type: KeyShiftTab},
+	"\x1b[Z":      {Type: KeyTab, Shift: true},
 	"\x1b[3~":     {Type: KeyDelete},
 	"\x1b[3;3~":   {Type: KeyDelete, Alt: true},
 	"\x1b[1~":     {Type: KeyHome},
