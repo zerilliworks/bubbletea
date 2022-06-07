@@ -26,7 +26,6 @@ type standardRenderer struct {
 	out               io.Writer
 	buf               bytes.Buffer
 	framerate         time.Duration
-	ticker            *time.Ticker
 	mtx               *sync.Mutex
 	done              chan struct{}
 	lastRender        string
@@ -62,9 +61,6 @@ func newRenderer(out io.Writer, mtx *sync.Mutex, useANSICompressor bool) rendere
 
 // start starts the renderer.
 func (r *standardRenderer) start() {
-	if r.ticker == nil {
-		r.ticker = time.NewTicker(r.framerate)
-	}
 	r.done = make(chan struct{})
 	go r.listen()
 }
@@ -96,13 +92,10 @@ func (r *standardRenderer) kill() {
 func (r *standardRenderer) listen() {
 	for {
 		select {
-		case <-r.ticker.C:
-			if r.ticker != nil {
-				r.flush()
-			}
+		case <-time.After(r.framerate):
+			r.flush()
+
 		case <-r.done:
-			r.ticker.Stop()
-			r.ticker = nil
 			return
 		}
 	}
