@@ -47,10 +47,10 @@ type standardRenderer struct {
 
 // newRenderer creates a new renderer. Normally you'll want to initialize it
 // with os.Stdout as the first argument.
-func newRenderer(out io.Writer, mtx *sync.Mutex, useANSICompressor bool) renderer {
+func newRenderer(out io.Writer, useANSICompressor bool) renderer {
 	r := &standardRenderer{
 		out:               out,
-		mtx:               mtx,
+		mtx:               &sync.Mutex{},
 		framerate:         defaultFramerate,
 		useANSICompressor: useANSICompressor,
 	}
@@ -230,15 +230,24 @@ func (r *standardRenderer) write(s string) {
 }
 
 func (r *standardRenderer) repaint() {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+
 	r.lastRender = ""
 }
 
 func (r *standardRenderer) altScreen() bool {
+	r.mtx.Lock()
+	defer r.mtx.Unlock()
+
 	return r.altScreenActive
 }
 
 func (r *standardRenderer) setAltScreen(v bool) {
+	r.mtx.Lock()
 	r.altScreenActive = v
+	r.mtx.Unlock()
+
 	r.repaint()
 }
 
@@ -348,9 +357,7 @@ func (r *standardRenderer) handleMessages(msg Msg) {
 	case repaintMsg:
 		// Force a repaint by clearing the render cache as we slide into a
 		// render.
-		r.mtx.Lock()
 		r.repaint()
-		r.mtx.Unlock()
 
 	case WindowSizeMsg:
 		r.mtx.Lock()
@@ -363,9 +370,7 @@ func (r *standardRenderer) handleMessages(msg Msg) {
 
 		// Force a repaint on the area where the scrollable stuff was in this
 		// update cycle
-		r.mtx.Lock()
 		r.repaint()
-		r.mtx.Unlock()
 
 	case syncScrollAreaMsg:
 		// Re-render scrolling area
@@ -374,9 +379,7 @@ func (r *standardRenderer) handleMessages(msg Msg) {
 		r.insertTop(msg.lines, msg.topBoundary, msg.bottomBoundary)
 
 		// Force non-scrolling stuff to repaint in this update cycle
-		r.mtx.Lock()
 		r.repaint()
-		r.mtx.Unlock()
 
 	case scrollUpMsg:
 		r.insertTop(msg.lines, msg.topBoundary, msg.bottomBoundary)

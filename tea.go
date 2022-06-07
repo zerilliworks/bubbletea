@@ -94,7 +94,6 @@ type Program struct {
 	cancelReader cancelreader.CancelReader
 
 	renderer           renderer
-	altScreenActive    bool
 	altScreenWasActive bool // was the altscreen active before releasing the terminal?
 
 	// CatchPanics is incredibly useful for restoring the terminal to a usable
@@ -382,7 +381,7 @@ func (p *Program) StartReturningModel() (Model, error) {
 
 	// If no renderer is set use the standard one.
 	if p.renderer == nil {
-		p.renderer = newRenderer(p.output, p.mtx, p.startupOptions.has(withANSICompressor))
+		p.renderer = newRenderer(p.output, p.startupOptions.has(withANSICompressor))
 	}
 
 	// Honor program startup options.
@@ -411,7 +410,6 @@ func (p *Program) StartReturningModel() (Model, error) {
 
 	// Start the renderer.
 	p.renderer.start()
-	p.renderer.setAltScreen(p.altScreenActive)
 
 	// Render the initial view.
 	p.renderer.write(model.View())
@@ -503,9 +501,7 @@ func (p *Program) StartReturningModel() (Model, error) {
 				continue
 
 			case WindowSizeMsg:
-				p.mtx.Lock()
 				p.renderer.repaint()
-				p.mtx.Unlock()
 
 			case enterAltScreenMsg:
 				p.EnterAltScreen()
@@ -599,38 +595,30 @@ func (p *Program) shutdown(kill bool) {
 //
 // Deprecated. Use the WithAltScreen ProgramOption instead.
 func (p *Program) EnterAltScreen() {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
-	if p.altScreenActive {
+	if p.renderer == nil {
+		return
+	}
+	if p.renderer.altScreen() {
 		return
 	}
 
 	enterAltScreen(p.output)
-
-	p.altScreenActive = true
-	if p.renderer != nil {
-		p.renderer.setAltScreen(p.altScreenActive)
-	}
+	p.renderer.setAltScreen(true)
 }
 
 // ExitAltScreen exits the alternate screen buffer.
 //
 // Deprecated. The altscreen will exited automatically when the program exits.
 func (p *Program) ExitAltScreen() {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
-	if !p.altScreenActive {
+	if p.renderer == nil {
+		return
+	}
+	if !p.renderer.altScreen() {
 		return
 	}
 
 	exitAltScreen(p.output)
-
-	p.altScreenActive = false
-	if p.renderer != nil {
-		p.renderer.setAltScreen(p.altScreenActive)
-	}
+	p.renderer.setAltScreen(false)
 }
 
 // EnableMouseCellMotion enables mouse click, release, wheel and motion events
@@ -679,8 +667,8 @@ func (p *Program) DisableMouseAllMotion() {
 func (p *Program) ReleaseTerminal() error {
 	p.ignoreSignals = true
 	p.cancelInput()
-	p.altScreenWasActive = p.altScreenActive
-	if p.altScreenActive {
+	p.altScreenWasActive = p.renderer.altScreen()
+	if p.renderer.altScreen() {
 		p.ExitAltScreen()
 		time.Sleep(time.Millisecond * 10) // give the terminal a moment to catch up
 	}
