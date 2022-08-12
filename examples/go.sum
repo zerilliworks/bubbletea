@@ -16,6 +16,8 @@ github.com/charmbracelet/bubbles v0.12.1-0.20220701153126-7cc578698457 h1:rroce7
 github.com/charmbracelet/bubbles v0.12.1-0.20220701153126-7cc578698457/go.mod h1:bbeTiXwPww4M031aGi8UK2HT9RDWoiNibae+1yCMtcc=
 github.com/charmbracelet/bubbles v0.13.0 h1:zP/ROH3wJEBqZWKIsD50ZKKlx3ydLInq3LdD/Nrlb8w=
 github.com/charmbracelet/bubbles v0.13.0/go.mod h1:bbeTiXwPww4M031aGi8UK2HT9RDWoiNibae+1yCMtcc=
+github.com/charmbracelet/bubbles v0.13.1-0.20220811215241-d14661abc66d h1:FQOF/r56qc1JMw+A5qVaFwpIflgU8Tc6ooPmr/ksV/o=
+github.com/charmbracelet/bubbles v0.13.1-0.20220811215241-d14661abc66d/go.mod h1:bbeTiXwPww4M031aGi8UK2HT9RDWoiNibae+1yCMtcc=
 github.com/charmbracelet/glamour v0.5.0 h1:wu15ykPdB7X6chxugG/NNfDUbyyrCLV9XBalj5wdu3g=
 github.com/charmbracelet/glamour v0.5.0/go.mod h1:9ZRtG19AUIzcTm7FGLGbq3D5WKQ5UyZBbQsMQN0XIqc=
 github.com/charmbracelet/harmonica v0.2.0 h1:8NxJWRWg/bzKqqEaaeFNipOu77YR5t8aSwG4pgaUBiQ=
