@@ -26,7 +26,7 @@ func (p *Program) initTerminal() error {
 
 // restoreTerminalState restores the terminal to the state prior to running the
 // Bubble Tea program.
-func (p Program) restoreTerminalState() error {
+func (p *Program) restoreTerminalState() error {
 	showCursor(p.output)
 
 	if p.console != nil {
